@@ -14,7 +14,7 @@ use tari_ootle_walletd_client::permissions::Permission;
 use tari_ootle_walletd_client::types::*;
 
 // Connect to a running wallet daemon
-let mut client = WalletDaemonClient::connect("http://localhost:18000", None)?;
+let mut client = WalletDaemonClient::connect("http://127.0.0.1:5100", None)?;
 
 // Authenticate and set the JWT token
 let auth_resp = client.auth_request(AuthLoginRequest {
@@ -42,6 +42,7 @@ let resp = client.submit_transaction(TransactionSubmitRequest {
     transaction,
     seal_signer: owner_key_id,
     other_signers: vec![],
+    signatures: vec![],
     detect_inputs: true,
     detect_inputs_use_unversioned: true,
     lock_ids: vec![],

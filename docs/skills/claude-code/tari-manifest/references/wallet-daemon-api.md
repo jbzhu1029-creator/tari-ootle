@@ -1,6 +1,6 @@
 # Wallet Daemon JSON-RPC API Reference
 
-The wallet daemon exposes a JSON-RPC 2.0 API. All requests are POST to the endpoint (e.g. `http://localhost:12008/json_rpc`).
+The wallet daemon exposes a JSON-RPC 2.0 API. All requests are POST to `/json_rpc` (also accepted at `/json-rpc`). The listen address defaults to `http://127.0.0.1:5100`.
 
 ## Authentication
 
@@ -39,22 +39,17 @@ WebAuthn requires a browser-based passkey interaction (biometric, hardware key, 
 
 ### Permissions
 
-```
-Admin              - Full access (includes all other permissions)
-AccountInfo        - View wallet info
-AccountList        - List accounts (optionally scoped to a component address)
-AccountBalance     - View balances (scoped to a substate ID)
-KeyList            - List derived keys
-TransactionGet     - View transactions
-TransactionSend    - Submit transactions (optionally scoped to a substate ID)
-SubstatesRead      - Fetch substates
-TemplatesRead      - Fetch templates
-GetNft             - View NFTs
-NftGetOwnershipProof - Generate NFT ownership proofs
-StartWebrtc        - Initiate WebRTC sessions (UI internal use)
-```
+`auth.request` takes `permissions` as a JSON array of serde `Permission` values. `"Admin"` satisfies every permission. `"Webrtc"` is the WebRTC grant. Other grants are objects:
 
-Use `Admin` for full access. For least-privilege, use `TransactionSend` + `AccountList` + `AccountInfo`.
+- `{"Accounts":["Read", null]}`, `{"Transfer":["Create", null]}`, `{"Confidential":["Read", null]}`, `{"StealthUtxos":["Read", null]}` — the second element is a component address, or `null` for every account
+- `{"Nfts":["Read", null]}` — the second element is a resource address, or `null`
+- `{"Keys":"Read"}`, `{"Transactions":"Create"}`, `{"Templates":"Read"}`, `{"Validators":"Read"}`, `{"Settings":"Read"}`, `{"AddressBook":"Read"}`
+- `{"TransactionRequests":"Create"}` — actions are `Read`, `Create`, and `Approve`
+- `{"Substates":"Read"}`, `{"BurnProofs":"Read"}`, `{"SwapPools":"Read"}` — these resources only accept `Read`
+
+CRUD actions are `Read`, `Create`, `Update`, and `Delete`. `Create`, `Update`, and `Delete` also satisfy `Read` on the same resource. `transactions.submit_manifest` requires `{"Transactions":"Create"}`. `accounts.list` requires `{"Accounts":["Read", null]}`.
+
+API keys use a different string form: `admin`, `webrtc`, or `<resource>:<action>[:<entity>]` (for example `transactions:create`). That string form is not accepted on `auth.request`.
 
 ## Auth Endpoints
 
@@ -134,7 +129,8 @@ Submit a transaction defined by a manifest.
 **Fields:**
 - `manifest` (string, required): Manifest source code. Escape inner quotes, use `\n` for newlines.
 - `variables` (object, required): Variable name to value string mapping. Values are parsed as `ManifestValue` (tries SubstateId, then NonFungibleId, then literal).
-- `signing_key_id` (object, optional): `{"Derived":{"index":0,"key_branch":"account"}}` to override signing key.
+- `seal_signer_key_id` (object, optional): `{"Derived":{"key_branch":"account","index":0}}` to override the seal signer. Omit to use the default account's owner key.
+- `signing_key_ids` (array, optional): extra key ids for other accounts in the manifest. Defaults to `[]`.
 - `max_fee` (number, required): Maximum fee in microtari.
 - `dry_run` (boolean, required): If true, simulate without submitting.
 
@@ -142,7 +138,7 @@ Submit a transaction defined by a manifest.
 ```json
 {
   "result": {
-    "transaction_id": "<hex>",
+    "transaction_id": "<64-char hex>",
     "result": null
   }
 }
@@ -160,9 +156,11 @@ Submit a pre-built transaction with raw instructions.
   "jsonrpc":"2.0","id":11,"method":"transactions.submit",
   "params":{
     "transaction": { ... },
-    "signing_key_id": null,
+    "seal_signer": {"Derived":{"key_branch":"account","index":0}},
+    "other_signers": [],
     "detect_inputs": true,
-    "detect_inputs_use_unversioned": true
+    "detect_inputs_use_unversioned": true,
+    "lock_ids": []
   }
 }
 ```
@@ -176,7 +174,7 @@ Block until a transaction is finalized or timeout.
 {
   "jsonrpc":"2.0","id":12,"method":"transactions.wait_result",
   "params":{
-    "transaction_id": "<hex>",
+    "transaction_id": "<64-char hex>",
     "timeout_secs": 120
   }
 }
@@ -190,7 +188,7 @@ Non-blocking poll for transaction result.
 ```json
 {
   "jsonrpc":"2.0","id":13,"method":"transactions.get_result",
-  "params":{"transaction_id":"<hex>"}
+  "params":{"transaction_id":"<64-char hex>"}
 }
 ```
 
@@ -216,7 +214,7 @@ Can use account name or component address.
 
 ### accounts.create_free_test_coins
 
-Create free test coins (test networks only).
+Create free test coins (test networks only). The faucet always issues 1,000 TARI; the request does not take an amount.
 
 **Request:**
 ```json
@@ -224,7 +222,6 @@ Create free test coins (test networks only).
   "jsonrpc":"2.0","id":24,"method":"accounts.create_free_test_coins",
   "params":{
     "account": {"Name":"my-account"},
-    "amount": 1000000,
     "max_fee": 1000
   }
 }

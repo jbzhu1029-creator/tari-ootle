@@ -82,14 +82,12 @@ mkdir <containerfolder>
 cd <containerfolder>
 git clone https://github.com/tari-project/tari.git
 # Checkout the tag on the L1 repo that is recently tested. Check the workspace Cargo.toml in this repo for the correct tag if this one is outdated.
-cd tari && git checkout v5.2.0-pre.5 && cd ..
+cd tari && git checkout v5.7.0-pre.5 && cd ..
 git clone https://github.com/tari-project/tari-ootle.git ootle
 ```
 
 ```shell
-cd tari
-git checkout development
-cd ../ootle
+cd ootle
 rustup target add wasm32-unknown-unknown
 # Creates an initial "swarm" config in data/swarm/config.toml
 cargo run --bin tari_swarm_daemon --release -- -c data/swarm/config.toml init
@@ -97,7 +95,7 @@ cargo run --bin tari_swarm_daemon --release -- -c data/swarm/config.toml init
 cargo run --bin tari_swarm_daemon --release -- -c data/swarm/config.toml start
 ```
 
-> Note: For subsequent runs, you only need to run the third command with the `-k` argument to avoid trying to
+> Note: For subsequent runs, you only need to run the start command with the `-k` argument to avoid trying to
 > re-register the Validator Nodes: `cargo run --bin tari_swarm_daemon --release -- -c data/swarm/config.toml start -k`
 
 This will get you an instance of the `tari_swarm_daemon`, starting a Minotari base node, a Minotari console wallet, an
